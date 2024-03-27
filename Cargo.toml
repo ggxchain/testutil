@@ -1,0 +1,25 @@
+[package]
+name = "testutil"
+version = "0.1.0"
+edition = "2021"
+
+[features]
+# intentionally no default features enabled
+brooklyn = []
+sydney = []
+
+[dependencies]
+bitcoincore-rpc = "0.18.0"
+testcontainers = { git = "https://github.com/testcontainers/testcontainers-rs", commit = "71bbdec", features = [
+    "async-trait",
+    "tokio",
+] }
+tokio = { version = "1.36.0", features = ["full"] }
+subxt = { version = "0.31.0", git = "https://github.com/paritytech/subxt", tag = "v0.31.0" }
+subxt-signer = { version = "0.31.0", git = "https://github.com/paritytech/subxt", tag = "v0.31.0", features = [
+    "subxt",
+] }
+bitcoin = { git = "https://github.com/ggxchain/interbtc.git", branch = "polkadot-v0.9.43", default-features = false }
+env_logger = "0.11.3"
+log = "0.4.21"
+hex = "0.4.3"
