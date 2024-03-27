@@ -1,14 +1,18 @@
+#[cfg(not(any(feature = "brooklyn", feature = "sydney")))]
+compile_error!("Either the 'brooklyn' or 'sydney' feature must be enabled.");
+
+#[cfg(all(feature = "brooklyn", feature = "sydney"))]
+compile_error!("Features `brooklyn` and `sydney` are mutually exclusive and cannot be enabled at the same time.");
+
 pub mod containers;
-pub mod metadata;
 
 // re-export publicly
 pub use testcontainers::{clients::Cli, Container};
 
-use log;
 use std::time::Duration;
-use subxt;
 use tokio::time::timeout;
 
+/// in case of subxt error, panic with a meaningful message
 pub fn handle_tx_error(e: subxt::Error) -> ! {
     match e {
         subxt::Error::Runtime(subxt::error::DispatchError::Module(error)) => {
@@ -23,6 +27,7 @@ pub fn handle_tx_error(e: subxt::Error) -> ! {
     };
 }
 
+/// block current thread until an event of type T occurs
 pub async fn wait_for_event<T>(
     api: &subxt::OnlineClient<subxt::PolkadotConfig>,
     timeout_duration: Duration,

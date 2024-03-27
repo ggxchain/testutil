@@ -3,7 +3,7 @@
 # This script runs a both brooklyn and sydney nodes (in --dev), then fetches metadata.
 # The metadata is saved to metadata_ggx_brooklyn.scale and metadata_ggx_sydney.scale respectively.
 
-cd $(dirname $0)
+cd $(dirname $0)/src/metadata
 
 PORT=12349
 
@@ -11,6 +11,7 @@ function get_metadata() {
     attempts=0
     max_attempts=30
     while sleep 1; do
+        (( attempts++ )) || true
 
         curl -sX POST -H "Content-Type: application/json" --data \
         '{"jsonrpc":"2.0","method":"state_getMetadata", "id": 1}' \
@@ -19,18 +20,17 @@ function get_metadata() {
         # Check if file is empty
         if [ ! -s "$1" ]; then
             echo "Fetched metadata $1 is empty... retrying (attempt $attempts/$max_attempts)"
-            if [ $attempts -gt $max_attempts ]; then
+            if [ $attempts -ge $max_attempts ]; then
                 echo "Failed to fetch metadata $1"
                 exit 1
             fi
 
-            ((attempts++))
             continue
         fi
 
         echo "SUCCESS"
         echo
-        break
+        return
     done
 }
 

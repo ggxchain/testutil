@@ -3209,7 +3209,7 @@ checksum = "55937e1799185b12863d447f42597ed69d9928686b8d88a1df17376a097d8369"
 [[package]]
 name = "testcontainers"
 version = "0.15.0"
-source = "git+https://github.com/testcontainers/testcontainers-rs#71bbdec013c1b19e5507217d52c612c71d9473f5"
+source = "git+https://github.com/testcontainers/testcontainers-rs?rev=71bbdec#71bbdec013c1b19e5507217d52c612c71d9473f5"
 dependencies = [
  "async-trait",
  "bollard-stubs",

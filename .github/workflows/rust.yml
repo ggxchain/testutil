@@ -1,0 +1,38 @@
+name: Rust
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_LOG: info
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        feature: [brooklyn, sydney]
+
+    steps:
+    - uses: actions/checkout@v3
+    - name: fmt
+      run: cargo fmt --all -- --check
+    - name: clippy
+      run: cargo clippy --all-targets --features=${{ matrix.feature }} -- -D warnings
+    - name: Check if metadata is up-to-date
+      run: |
+        ./fetch_metadata.sh
+        if ! git diff --exit-code; then
+          echo "Metadata is out of date. Please run ./fetch_metadata.sh and commit the changes."
+          exit 1
+        fi
+    - name: Build
+      run: cargo build --release --verbose --features=${{ matrix.feature }}
+    - name: Run tests
+      run: cargo test --release --verbose --features=${{ matrix.feature }}

@@ -14,12 +14,9 @@ pub struct GgxNodeImage {
 const DEFAULT_GGX_IMAGE: &str = "public.ecr.aws/k7w7q6c4/ggxchain-node";
 
 #[allow(dead_code)]
-const DEFAULT_GGX_SYDNEY_TAG: &str = "sydney-9cf57e91";
+const DEFAULT_GGX_SYDNEY_TAG: &str = "sydney-0b88ed23";
 #[allow(dead_code)]
-const DEFAULT_GGX_BROOKLYN_TAG: &str = "brooklyn-9cf57e91";
-
-#[cfg(not(any(feature = "brooklyn", feature = "sydney")))]
-compile_error!("Either the 'brooklyn' or 'sydney' feature must be enabled.");
+const DEFAULT_GGX_BROOKLYN_TAG: &str = "brooklyn-0b88ed23";
 
 #[cfg(feature = "brooklyn")]
 const DEFAULT_GGX_TAG: &str = DEFAULT_GGX_BROOKLYN_TAG;
@@ -78,7 +75,7 @@ pub struct GgxNodeArgs {
 impl Default for GgxNodeArgs {
     fn default() -> Self {
         Self {
-            args: vec![
+            args: [
                 "--rpc-external",
                 "--rpc-methods=unsafe",
                 "--unsafe-rpc-external",
@@ -103,16 +100,23 @@ impl ImageArgs for GgxNodeArgs {
 
 pub struct GgxNodeContainer<'d>(pub Container<'d, GgxNodeImage>);
 impl<'d> GgxNodeContainer<'d> {
+    /// use this only if network is not `host`
     pub fn get_rpc_port(&self) -> u16 {
         self.0.get_host_port_ipv4(9944)
     }
 
+    /// use this only if network is not `host`
     pub fn get_host(&self) -> String {
         "127.0.0.1".to_string()
     }
 
+    /// use this only if network is not `host`
     pub fn get_ws_url(&self) -> String {
         format!("ws://{}:{}", self.get_host(), self.get_rpc_port())
+    }
+
+    pub fn get_host_ws_url(&self) -> String {
+        format!("ws://{}:9944", self.get_host())
     }
 }
 

@@ -1,4 +1,10 @@
+mod metadata;
+
 use hex::ToHex;
+use metadata::ggx::runtime_types::{
+    interbtc_primitives::{oracle::Key, CurrencyId, TokenSymbol},
+    sp_arithmetic::fixed_point::FixedU128,
+};
 use std::{thread, time::Duration};
 use subxt::{OnlineClient, PolkadotConfig};
 use subxt_signer::sr25519::dev;
@@ -14,10 +20,6 @@ use testutil::containers::{
     },
     ggx::{GgxNodeArgs, GgxNodeContainer, GgxNodeImage},
     interbtc_clients::{InterbtcClientsContainer, InterbtcClientsImage},
-};
-use testutil::metadata::ggx::runtime_types::{
-    interbtc_primitives::{oracle::Key, CurrencyId, TokenSymbol},
-    sp_arithmetic::fixed_point::FixedU128,
 };
 use tokio::time::timeout;
 
@@ -37,10 +39,10 @@ fn start_vault<'d>(
 ) -> InterbtcClientsContainer<'d> {
     log::info!("Starting Vault");
 
-    let args = vec![
+    let args = [
         "vault",
         "--no-prometheus",
-        "--restart-policy=always",
+        "--restart-policy=never",
         format!("--btc-parachain-url={}", ggx_ws).as_str(),
         "--auto-register=GGXT=500000000",
         "--bitcoin-connection-timeout-ms=300",
@@ -94,7 +96,7 @@ fn start_vault<'d>(
 async fn set_oracle_exchange_rate(api: &OnlineClient<PolkadotConfig>) {
     // use subxt to connect to the parachain and set the exchange rate for GGXT.
     // normally `oracle` component does that, but in our setup it is not available.
-    let tx = testutil::metadata::ggx::tx().oracle().feed_values(vec![(
+    let tx = metadata::ggx::tx().oracle().feed_values(vec![(
         Key::ExchangeRate(CurrencyId::Token(TokenSymbol::GGXT)),
         FixedU128(1_000_000_000_000_000_000u128),
     )]);
@@ -111,7 +113,7 @@ async fn set_oracle_exchange_rate(api: &OnlineClient<PolkadotConfig>) {
 }
 
 async fn get_best_btc_block_hash(api: &OnlineClient<PolkadotConfig>) -> Option<String> {
-    let query = testutil::metadata::ggx::storage().btc_relay().best_block();
+    let query = metadata::ggx::storage().btc_relay().best_block();
     let result = api
         .storage()
         .at_latest()
@@ -137,7 +139,7 @@ async fn wait_for_btc_tree_sync(
                 .unwrap()
                 .encode_hex_upper();
 
-            let best_btc_ggx = get_best_btc_block_hash(&api).await;
+            let best_btc_ggx = get_best_btc_block_hash(api).await;
             if let Some(btc_best_ggx) = best_btc_ggx {
                 log::debug!(
 					"Waiting for the parachain to ingest the last BTC block... Current: {}. BTC Best: {}",
@@ -158,7 +160,7 @@ async fn wait_for_btc_tree_sync(
     .expect("timeout waiting for btc tree sync");
 }
 
-fn create_btc_address_with_50btc<'d>(bitcoin: &BtcNodeContainer<'d>) -> Address {
+fn create_btc_address_with_50btc(bitcoin: &BtcNodeContainer<'_>) -> Address {
     // without this we cannot create new address
     let bitcoin_api = bitcoin.api_with_host_network(None);
     bitcoin_api
@@ -190,7 +192,7 @@ async fn wait_until_btc_tx_finalized(
 ) {
     timeout(timeout_duration, async move {
         loop {
-            let tx = bitcoin_api.get_transaction(&txid, None).unwrap();
+            let tx = bitcoin_api.get_transaction(txid, None).unwrap();
             if tx.info.confirmations >= confirmations {
                 log::info!(
                     "BTC tx {} is finalized with {} confirmations (block {}:{:?})",
@@ -218,7 +220,7 @@ async fn deposit_btc_to_ggx(
 ) {
     log::info!("Depositing some BTC to GGX");
 
-    use testutil::metadata::ggx::runtime_types::interbtc_primitives::{VaultCurrencyPair, VaultId};
+    use metadata::ggx::runtime_types::interbtc_primitives::{VaultCurrencyPair, VaultId};
 
     let ggxt = CurrencyId::Token(TokenSymbol::GGXT);
     let kbtc = CurrencyId::Token(TokenSymbol::KBTC);
@@ -232,7 +234,7 @@ async fn deposit_btc_to_ggx(
         },
     };
 
-    let tx = testutil::metadata::ggx::tx().issue().request_issue(
+    let tx = metadata::ggx::tx().issue().request_issue(
         AMOUNT.into(),
         vault_id,
         CurrencyId::Token(TokenSymbol::GGXT),
@@ -250,7 +252,7 @@ async fn deposit_btc_to_ggx(
     };
 
     let e = events
-        .find_first::<testutil::metadata::ggx::issue::events::RequestIssue>()
+        .find_first::<metadata::ggx::issue::events::RequestIssue>()
         .expect("no RequestIssue event")
         .expect("Option is None");
 
@@ -276,19 +278,19 @@ async fn deposit_btc_to_ggx(
 
     // mine 10 new blocks to include txid into a block + mine some blocks on top of it
     bitcoin_api
-        .generate_to_address(10, &bitcoin_user_address)
+        .generate_to_address(10, bitcoin_user_address)
         .unwrap();
 
     // check if tx is included in a block
-    wait_until_btc_tx_finalized(&bitcoin_api, &txid, 6, Duration::from_secs(60)).await;
+    wait_until_btc_tx_finalized(bitcoin_api, &txid, 6, Duration::from_secs(60)).await;
 }
 
 async fn get_token_balance(
     api: &OnlineClient<PolkadotConfig>,
     account_id: subxt::utils::AccountId32,
     token: CurrencyId,
-) -> Option<testutil::metadata::ggx::runtime_types::orml_tokens::AccountData<u128>> {
-    let query = testutil::metadata::ggx::storage()
+) -> Option<metadata::ggx::runtime_types::orml_tokens::AccountData<u128>> {
+    let query = metadata::ggx::storage()
         .tokens()
         .accounts(account_id, token);
     api.storage()
@@ -300,7 +302,7 @@ async fn get_token_balance(
         .expect("cannot get token balance")
 }
 
-fn start_ggx<'d>(docker: &'d Cli) -> GgxNodeContainer<'d> {
+fn start_ggx(docker: &Cli) -> GgxNodeContainer<'_> {
     log::info!("Starting GGX");
     let mut args = GgxNodeArgs::default();
     args.args.push("--alice".to_string());
@@ -325,14 +327,14 @@ mod e2e_btc_test {
         let bitcoin = start_btc(&docker);
         let alice = start_ggx(&docker);
         // use subxt to connect to the parachain and set the exchange rate
-        let api = OnlineClient::<subxt::PolkadotConfig>::from_url(alice.get_ws_url())
+        let api = OnlineClient::<subxt::PolkadotConfig>::from_url(alice.get_host_ws_url())
             .await
             .expect("failed to connect to the parachain");
 
         set_oracle_exchange_rate(&api).await;
 
         // let _faucet = start_faucet(&docker);
-        let _vault = start_vault(&docker, &bitcoin, alice.get_ws_url());
+        let _vault = start_vault(&docker, &bitcoin, alice.get_host_ws_url());
 
         let bitcoin_api = bitcoin.api_with_host_network(None);
         let address = create_btc_address_with_50btc(&bitcoin);
@@ -360,7 +362,7 @@ mod e2e_btc_test {
         wait_for_btc_tree_sync(&bitcoin_api, &api, Duration::from_secs(60)).await;
 
         // wait for ExecuteIssue event
-        let e = testutil::wait_for_event::<testutil::metadata::ggx::issue::events::ExecuteIssue>(
+        let e = testutil::wait_for_event::<metadata::ggx::issue::events::ExecuteIssue>(
             &api,
             Duration::from_secs(60),
         )

@@ -61,7 +61,7 @@ pub struct BtcNodeArgs {
 impl Default for BtcNodeArgs {
     fn default() -> Self {
         Self {
-            args: vec![
+            args: [
                 "-regtest",
                 "-server",
                 "-txindex",
