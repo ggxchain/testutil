@@ -10,10 +10,10 @@ pub struct InterbtcClientsImage {
 const DEFAULT_INTERBTC_CLIENTS_IMAGE: &str = "ggxdocker/interbtc-clients";
 
 #[cfg(feature = "brooklyn")]
-const DEFAULT_INTERBTC_BROOKLYN_TAG: &str = "brooklyn-e17086b48b3e5553b20bbafa08a028dd31467c6d";
+const DEFAULT_INTERBTC_BROOKLYN_TAG: &str = "brooklyn-f066dac2df17f97ced5e56b69f120fa016d989de";
 
 #[cfg(feature = "sydney")]
-const DEFAULT_INTERBTC_SYDNEY_TAG: &str = "sydney-e17086b48b3e5553b20bbafa08a028dd31467c6d";
+const DEFAULT_INTERBTC_SYDNEY_TAG: &str = "sydney-f066dac2df17f97ced5e56b69f120fa016d989de";
 
 impl Image for InterbtcClientsImage {
     type Args = Vec<String>;

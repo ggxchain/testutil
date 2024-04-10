@@ -14,9 +14,9 @@ pub struct GgxNodeImage {
 const DEFAULT_GGX_IMAGE: &str = "public.ecr.aws/k7w7q6c4/ggxchain-node";
 
 #[allow(dead_code)]
-const DEFAULT_GGX_SYDNEY_TAG: &str = "sydney-0b88ed23";
+const DEFAULT_GGX_SYDNEY_TAG: &str = "sydney-392a5d29";
 #[allow(dead_code)]
-const DEFAULT_GGX_BROOKLYN_TAG: &str = "brooklyn-0b88ed23";
+const DEFAULT_GGX_BROOKLYN_TAG: &str = "brooklyn-392a5d29";
 
 #[cfg(feature = "brooklyn")]
 const DEFAULT_GGX_TAG: &str = DEFAULT_GGX_BROOKLYN_TAG;
