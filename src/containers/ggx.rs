@@ -13,23 +13,31 @@ pub struct GgxNodeImage {
 // NOTE(Bohdan): update these if necessary, but do not rename variables, as fetch.sh depends on them.
 const DEFAULT_GGX_IMAGE: &str = "public.ecr.aws/k7w7q6c4/ggxchain-node";
 
-#[allow(dead_code)]
-const DEFAULT_GGX_SYDNEY_TAG: &str = "sydney-392a5d29";
-#[allow(dead_code)]
-const DEFAULT_GGX_BROOKLYN_TAG: &str = "brooklyn-392a5d29";
+pub enum GgxNodeNetwork {
+    Brooklyn,
+    Sydney,
+}
+impl GgxNodeNetwork {
+    pub fn as_str(&self) -> &'static str {
+        match *self {
+            GgxNodeNetwork::Brooklyn => "brooklyn-392a5d29",
+            GgxNodeNetwork::Sydney => "sydney-392a5d29",
+        }
+    }
+}
 
-#[cfg(feature = "brooklyn")]
-const DEFAULT_GGX_TAG: &str = DEFAULT_GGX_BROOKLYN_TAG;
-
-#[cfg(feature = "sydney")]
-const DEFAULT_GGX_TAG: &str = DEFAULT_GGX_SYDNEY_TAG;
-
-impl Default for GgxNodeImage {
-    fn default() -> Self {
+impl GgxNodeImage {
+    pub fn brooklyn() -> Self {
         Self {
-            // default image+tag
             image: DEFAULT_GGX_IMAGE.to_string(),
-            tag: DEFAULT_GGX_TAG.to_string(),
+            tag: GgxNodeNetwork::Brooklyn.as_str().to_string(),
+        }
+    }
+
+    pub fn sydney() -> Self {
+        Self {
+            image: DEFAULT_GGX_IMAGE.to_string(),
+            tag: GgxNodeNetwork::Sydney.as_str().to_string(),
         }
     }
 }
@@ -129,7 +137,7 @@ mod tests {
     async fn test_ggx_node() {
         env_logger::init();
         let docker = Cli::default();
-        let image: RunnableImage<GgxNodeImage> = GgxNodeImage::default().into();
+        let image: RunnableImage<GgxNodeImage> = GgxNodeImage::brooklyn().into();
         let node = GgxNodeContainer(docker.run(image));
 
         let host = node.get_host();

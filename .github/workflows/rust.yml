@@ -12,19 +12,24 @@ env:
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        feature: [brooklyn, sydney]
-
     steps:
     - uses: actions/checkout@v3
+    - run: git config --global --add safe.directory "*"
+    - uses: dsherret/rust-toolchain-file@v1
+    - uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cargo/bin/
+          ~/.cargo/registry/index/
+          ~/.cargo/registry/cache/
+          ~/.cargo/git/db/
+          target/
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
     - name: fmt
       run: cargo fmt --all -- --check
     - name: clippy
-      run: cargo clippy --all-targets --features=${{ matrix.feature }} -- -D warnings
+      run: cargo clippy --all-targets -- -D warnings
     - name: Check if metadata is up-to-date
       run: |
         ./fetch_metadata.sh
@@ -33,6 +38,6 @@ jobs:
           exit 1
         fi
     - name: Build
-      run: cargo build --release --verbose --features=${{ matrix.feature }}
+      run: cargo build --release
     - name: Run tests
-      run: cargo test --release --verbose --features=${{ matrix.feature }}
+      run: cargo test --release

@@ -1,9 +1,3 @@
-#[cfg(not(any(feature = "brooklyn", feature = "sydney")))]
-compile_error!("Either the 'brooklyn' or 'sydney' feature must be enabled.");
-
-#[cfg(all(feature = "brooklyn", feature = "sydney"))]
-compile_error!("Features `brooklyn` and `sydney` are mutually exclusive and cannot be enabled at the same time.");
-
 pub mod containers;
 
 // re-export publicly

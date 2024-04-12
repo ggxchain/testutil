@@ -41,8 +41,8 @@ function cleanup() {
 GGX_RS="../containers/ggx.rs"
 # Use grep and cut to parse the strings into variables
 DEFAULT_GGX_NODE_IMAGE=$(cat "$GGX_RS" | grep -E 'DEFAULT_GGX_IMAGE: &str' | grep -oE '".*?"' | sed -e 's/"//g')
-DEFAULT_GGX_BROOKLYN_TAG=$(cat "$GGX_RS" | grep -E 'DEFAULT_GGX_BROOKLYN_TAG: &str' | grep -oE '".*?"' | sed -e 's/"//g')
-DEFAULT_GGX_SYDNEY_TAG=$(cat "$GGX_RS" | grep -E 'DEFAULT_GGX_SYDNEY_TAG: &str' | grep -oE '".*?"' | sed -e 's/"//g')
+DEFAULT_GGX_BROOKLYN_TAG=$(cat "$GGX_RS" | grep -E "GgxNodeNetwork::Brooklyn =>" | grep -oE '".*?"' | sed -e 's/"//g')
+DEFAULT_GGX_SYDNEY_TAG=$(cat "$GGX_RS" | grep -E "GgxNodeNetwork::Sydney =>" | grep -oE '".*?"' | sed -e 's/"//g')
 
 function start_node_get_metadata() {
     echo "Starting node $1 with image $DEFAULT_GGX_NODE_IMAGE:$2"

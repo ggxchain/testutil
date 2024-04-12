@@ -4,32 +4,53 @@ use testcontainers::{Container, Image};
 
 #[derive(Clone, Debug, Default)]
 pub struct InterbtcClientsImage {
+    pub image: String,
+    pub tag: String,
     pub wait_for: Vec<testcontainers::core::WaitFor>,
 }
 
 const DEFAULT_INTERBTC_CLIENTS_IMAGE: &str = "ggxdocker/interbtc-clients";
 
-#[cfg(feature = "brooklyn")]
-const DEFAULT_INTERBTC_BROOKLYN_TAG: &str = "brooklyn-f066dac2df17f97ced5e56b69f120fa016d989de";
+pub enum InterbtcClientsNetwork {
+    Brooklyn,
+    Sydney,
+}
+impl InterbtcClientsNetwork {
+    pub fn as_str(&self) -> &'static str {
+        match *self {
+            InterbtcClientsNetwork::Brooklyn => "brooklyn-022a15afe51ae2e9c0ef18bc7f587bc6166865b7",
+            InterbtcClientsNetwork::Sydney => "sydney-022a15afe51ae2e9c0ef18bc7f587bc6166865b7",
+        }
+    }
+}
 
-#[cfg(feature = "sydney")]
-const DEFAULT_INTERBTC_SYDNEY_TAG: &str = "sydney-f066dac2df17f97ced5e56b69f120fa016d989de";
+impl InterbtcClientsImage {
+    pub fn brooklyn() -> Self {
+        Self {
+            image: DEFAULT_INTERBTC_CLIENTS_IMAGE.to_string(),
+            tag: InterbtcClientsNetwork::Brooklyn.as_str().to_string(),
+            wait_for: vec![],
+        }
+    }
+
+    pub fn sydney() -> Self {
+        Self {
+            image: DEFAULT_INTERBTC_CLIENTS_IMAGE.to_string(),
+            tag: InterbtcClientsNetwork::Sydney.as_str().to_string(),
+            wait_for: vec![],
+        }
+    }
+}
 
 impl Image for InterbtcClientsImage {
     type Args = Vec<String>;
 
     fn name(&self) -> String {
-        DEFAULT_INTERBTC_CLIENTS_IMAGE.to_string()
+        self.image.to_string()
     }
 
     fn tag(&self) -> String {
-        #[cfg(feature = "brooklyn")]
-        let t = DEFAULT_INTERBTC_BROOKLYN_TAG;
-
-        #[cfg(feature = "sydney")]
-        let t = DEFAULT_INTERBTC_SYDNEY_TAG;
-
-        t.to_string()
+        self.tag.clone()
     }
 
     fn ready_conditions(&self) -> Vec<testcontainers::core::WaitFor> {

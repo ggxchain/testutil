@@ -57,14 +57,11 @@ fn start_vault<'d>(
     .map(|s| s.to_string())
     .collect();
 
-    let image = (
-        InterbtcClientsImage {
-            wait_for: vec![WaitFor::message_on_stderr(
-                "vault::relay: Initializing at height",
-            )],
-        },
-        args,
-    );
+    let mut image = InterbtcClientsImage::brooklyn();
+    image.wait_for.push(WaitFor::message_on_stderr(
+        "vault::relay: Initializing at height",
+    ));
+    let image = (image, args);
     let image = RunnableImage::from(image)
         .with_network("host")
         .with_container_name("vault");
@@ -306,7 +303,7 @@ fn start_ggx(docker: &Cli) -> GgxNodeContainer<'_> {
     log::info!("Starting GGX");
     let mut args = GgxNodeArgs::default();
     args.args.push("--alice".to_string());
-    let image = GgxNodeImage::default();
+    let image = GgxNodeImage::brooklyn();
     let image = RunnableImage::from((image, args))
         .with_network("host")
         .with_container_name("alice");
