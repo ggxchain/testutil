@@ -3,7 +3,7 @@ use testcontainers::{
     ImageArgs,
 };
 
-use testcontainers::Container;
+use testcontainers::ContainerAsync;
 
 #[derive(Debug, Default, Clone, Eq, PartialEq)]
 pub struct CosmosImage {}
@@ -23,6 +23,12 @@ impl Default for CosmosArgs {
     }
 }
 
+impl ImageArgs for CosmosArgs {
+    fn into_iterator(self) -> Box<dyn Iterator<Item=String>> {
+        Box::new(self.args.into_iter())
+    }
+}
+
 impl Image for CosmosImage {
     type Args = CosmosArgs;
 
@@ -35,27 +41,31 @@ impl Image for CosmosImage {
     }
 
     fn ready_conditions(&self) -> Vec<WaitFor> {
-        vec![]
+        vec![
+            WaitFor::message_on_stderr("starting node with ABCI Tendermint in-process")
+        ]
+    }
+
+    fn expose_ports(&self) -> Vec<u16> {
+        vec![
+            26657, // tendermint node
+            1316,  // blockchain API
+            4500,  // token faucet
+        ]
     }
 }
 
-pub struct CosmosContainer<'a>(pub Container<'a, CosmosImage>);
+pub struct CosmosContainer(pub ContainerAsync<CosmosImage>);
 
 #[cfg(test)]
 mod tests {
-    use std::thread;
-    use std::time::Duration;
     use super::*;
-    use testcontainers::clients::Cli;
+    use testcontainers::runners::AsyncRunner;
 
-    #[test]
-    fn test_cosmos() {
-        let docker = Cli::default();
+    #[tokio::test]
+    async fn test_cosmos() {
         let image = CosmosImage::default();
-        let node = docker.run(image);
-        let node = CosmosContainer(node);
-
-        // sleep 10s
-        thread::sleep(Duration::from_secs(100));
+        let node = image.start().await;
+        let _node = CosmosContainer(node);
     }
 }

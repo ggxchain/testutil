@@ -293,9 +293,13 @@ mod e2e_btc_test {
 
     use crate::*;
 
+    fn init() {
+        let _ = env_logger::builder().is_test(true).try_init();
+    }
+
     #[tokio::test]
     async fn e2e_btc_test() {
-        env_logger::init();
+        init();
 
         // run in this order: Bitcoin, Parachain, Vault.
         let bitcoin = start_btc().await;
