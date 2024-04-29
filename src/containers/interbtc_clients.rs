@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use testcontainers::{Container, Image};
+use testcontainers::{ContainerAsync, Image};
 
 #[derive(Clone, Debug, Default)]
 pub struct InterbtcClientsImage {
@@ -62,4 +62,4 @@ impl Image for InterbtcClientsImage {
     }
 }
 
-pub struct InterbtcClientsContainer<'d>(pub Container<'d, InterbtcClientsImage>);
+pub struct InterbtcClientsContainer(pub ContainerAsync<InterbtcClientsImage>);

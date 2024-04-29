@@ -10,10 +10,7 @@ brooklyn = []
 
 [dependencies]
 bitcoincore-rpc = "0.18.0"
-testcontainers = { git = "https://github.com/testcontainers/testcontainers-rs", rev = "71bbdec", features = [
-    "async-trait",
-    "tokio",
-] }
+testcontainers = { version = "^0.16.3" }
 tokio = { version = "^1", features = ["full"] }
 subxt = { version = "0.31.0", git = "https://github.com/paritytech/subxt", tag = "v0.31.0" }
 subxt-signer = { version = "0.31.0", git = "https://github.com/paritytech/subxt", tag = "v0.31.0", features = [

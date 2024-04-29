@@ -5,11 +5,12 @@ use metadata::ggx::runtime_types::{
     interbtc_primitives::{oracle::Key, CurrencyId, TokenSymbol},
     sp_arithmetic::fixed_point::FixedU128,
 };
-use std::{thread, time::Duration};
+use testcontainers::runners::AsyncRunner;
+use std::{time::Duration};
 use subxt::{OnlineClient, PolkadotConfig};
 use subxt_signer::sr25519::dev;
 use testcontainers::core::WaitFor;
-use testcontainers::{clients::Cli, RunnableImage};
+use testcontainers::{RunnableImage};
 use testutil::containers::{
     btc::{
         bitcoincore_rpc::{
@@ -23,20 +24,19 @@ use testutil::containers::{
 };
 use tokio::time::timeout;
 
-fn start_btc(docker: &Cli) -> BtcNodeContainer {
+async fn start_btc() -> BtcNodeContainer {
     log::info!("Starting Bitcoin");
     let image = BtcNodeImage::default();
     let image = RunnableImage::from(image)
         .with_network("host")
         .with_container_name("bitcoin");
-    BtcNodeContainer(docker.run(image))
+    BtcNodeContainer(image.start().await)
 }
 
-fn start_vault<'d>(
-    docker: &'d Cli,
-    btc: &BtcNodeContainer<'d>,
+async fn start_vault(
+    btc: &BtcNodeContainer,
     ggx_ws: String,
-) -> InterbtcClientsContainer<'d> {
+) -> InterbtcClientsContainer {
     log::info!("Starting Vault");
 
     let args = [
@@ -65,30 +65,8 @@ fn start_vault<'d>(
     let image = RunnableImage::from(image)
         .with_network("host")
         .with_container_name("vault");
-    InterbtcClientsContainer(docker.run(image))
+    InterbtcClientsContainer(image.start().await)
 }
-
-// fn start_faucet<'d>(docker: &'d Cli) -> InterbtcClientsContainer<'d> {
-// 	let args = vec![
-// 		"faucet",
-// 		"--keyring=alice",
-// 		"--btc-parachain-url=ws://host:9944",
-// 	]
-// 	.iter()
-// 	.map(|s| s.to_string())
-// 	.collect();
-
-// 	let image = (InterbtcClientsImage::default(), args);
-// 	let image = RunnableImage::from(image)
-// 		.with_mapped_port(Port {
-// 			// map 3033 from container into our host 3033
-// 			local: 3033,
-// 			internal: 3033,
-// 		})
-// 		// host will be available by the name `host` inside this container
-// 		.with_host("host", Host::HostGateway);
-// 	InterbtcClientsContainer(docker.run(image))
-// }
 
 async fn set_oracle_exchange_rate(api: &OnlineClient<PolkadotConfig>) {
     // use subxt to connect to the parachain and set the exchange rate for GGXT.
@@ -148,7 +126,7 @@ async fn wait_for_btc_tree_sync(
                 }
             }
 
-            thread::sleep(Duration::from_secs(1));
+            tokio::time::sleep(Duration::from_secs(1)).await;
         }
 
         log::info!("Parachain and Bitcoin bitcoin best blocks are in sync")
@@ -157,7 +135,7 @@ async fn wait_for_btc_tree_sync(
     .expect("timeout waiting for btc tree sync");
 }
 
-fn create_btc_address_with_50btc(bitcoin: &BtcNodeContainer<'_>) -> Address {
+fn create_btc_address_with_50btc(bitcoin: &BtcNodeContainer) -> Address {
     // without this we cannot create new address
     let bitcoin_api = bitcoin.api_with_host_network(None);
     bitcoin_api
@@ -201,7 +179,7 @@ async fn wait_until_btc_tx_finalized(
                 break;
             }
 
-            thread::sleep(Duration::from_secs(1));
+            tokio::time::sleep(Duration::from_secs(1)).await;
         }
     })
     .await
@@ -271,7 +249,7 @@ async fn deposit_btc_to_ggx(
         .expect("failed to send to address");
 
     // wait a bit
-    thread::sleep(Duration::from_secs(2));
+    tokio::time::sleep(Duration::from_secs(2)).await;
 
     // mine 10 new blocks to include txid into a block + mine some blocks on top of it
     bitcoin_api
@@ -299,7 +277,7 @@ async fn get_token_balance(
         .expect("cannot get token balance")
 }
 
-fn start_ggx(docker: &Cli) -> GgxNodeContainer<'_> {
+async fn start_ggx() -> GgxNodeContainer {
     log::info!("Starting GGX");
     let mut args = GgxNodeArgs::default();
     args.args.push("--alice".to_string());
@@ -307,7 +285,7 @@ fn start_ggx(docker: &Cli) -> GgxNodeContainer<'_> {
     let image = RunnableImage::from((image, args))
         .with_network("host")
         .with_container_name("alice");
-    GgxNodeContainer(docker.run(image))
+    GgxNodeContainer(image.start().await)
 }
 
 #[cfg(test)]
@@ -318,20 +296,19 @@ mod e2e_btc_test {
     #[tokio::test]
     async fn e2e_btc_test() {
         env_logger::init();
-        let docker = Cli::default();
 
         // run in this order: Bitcoin, Parachain, Vault.
-        let bitcoin = start_btc(&docker);
-        let alice = start_ggx(&docker);
+        let bitcoin = start_btc().await;
+        let alice = start_ggx().await;
         // use subxt to connect to the parachain and set the exchange rate
-        let api = OnlineClient::<subxt::PolkadotConfig>::from_url(alice.get_host_ws_url())
+        let api = OnlineClient::<PolkadotConfig>::from_url(alice.get_host_ws_url())
             .await
             .expect("failed to connect to the parachain");
 
         set_oracle_exchange_rate(&api).await;
 
         // let _faucet = start_faucet(&docker);
-        let _vault = start_vault(&docker, &bitcoin, alice.get_host_ws_url());
+        let _vault = start_vault(&bitcoin, alice.get_host_ws_url()).await;
 
         let bitcoin_api = bitcoin.api_with_host_network(None);
         let address = create_btc_address_with_50btc(&bitcoin);

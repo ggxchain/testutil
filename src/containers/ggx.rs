@@ -1,6 +1,6 @@
 use testcontainers::{
     core::{Image, WaitFor},
-    Container, ImageArgs,
+    ContainerAsync, ImageArgs,
 };
 
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -65,14 +65,14 @@ impl Image for GgxNodeImage {
         self.tag.clone()
     }
 
+    fn ready_conditions(&self) -> Vec<WaitFor> {
+        vec![WaitFor::message_on_stderr("Running JSON-RPC server: addr=")]
+    }
+
     fn expose_ports(&self) -> Vec<u16> {
         vec![
             9944, // rpc
         ]
-    }
-
-    fn ready_conditions(&self) -> Vec<WaitFor> {
-        vec![WaitFor::message_on_stderr("Running JSON-RPC server: addr=")]
     }
 }
 
@@ -106,11 +106,11 @@ impl ImageArgs for GgxNodeArgs {
     }
 }
 
-pub struct GgxNodeContainer<'d>(pub Container<'d, GgxNodeImage>);
-impl<'d> GgxNodeContainer<'d> {
+pub struct GgxNodeContainer(pub ContainerAsync<GgxNodeImage>);
+impl GgxNodeContainer {
     /// use this only if network is not `host`
-    pub fn get_rpc_port(&self) -> u16 {
-        self.0.get_host_port_ipv4(9944)
+    pub async fn get_rpc_port(&self) -> u16 {
+        self.0.get_host_port_ipv4(9944).await
     }
 
     /// use this only if network is not `host`
@@ -119,8 +119,8 @@ impl<'d> GgxNodeContainer<'d> {
     }
 
     /// use this only if network is not `host`
-    pub fn get_ws_url(&self) -> String {
-        format!("ws://{}:{}", self.get_host(), self.get_rpc_port())
+    pub async fn get_ws_url(&self) -> String {
+        format!("ws://{}:{}", self.get_host(), self.get_rpc_port().await)
     }
 
     pub fn get_host_ws_url(&self) -> String {
@@ -131,17 +131,17 @@ impl<'d> GgxNodeContainer<'d> {
 #[cfg(test)]
 mod tests {
     use super::{GgxNodeContainer, GgxNodeImage};
-    use testcontainers::{clients::Cli, RunnableImage};
+    use testcontainers::{RunnableImage};
+    use testcontainers::runners::AsyncRunner;
 
     #[tokio::test]
     async fn test_ggx_node() {
         env_logger::init();
-        let docker = Cli::default();
         let image: RunnableImage<GgxNodeImage> = GgxNodeImage::brooklyn().into();
-        let node = GgxNodeContainer(docker.run(image));
+        let node = GgxNodeContainer(image.start().await);
 
         let host = node.get_host();
-        let port = node.get_rpc_port();
+        let port = node.get_rpc_port().await;
         println!("Node is running at {}:{}", host, port);
         assert_ne!(port, 9944); // port will be random
     }

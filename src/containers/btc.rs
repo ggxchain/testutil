@@ -1,9 +1,4 @@
-use testcontainers::{
-    core::{Image, WaitFor},
-    ImageArgs,
-};
-
-use testcontainers::Container;
+use testcontainers::{ContainerAsync, core::{Image, WaitFor}, ImageArgs};
 
 pub extern crate bitcoincore_rpc;
 
@@ -85,14 +80,14 @@ impl ImageArgs for BtcNodeArgs {
     }
 }
 
-pub struct BtcNodeContainer<'d>(pub Container<'d, BtcNodeImage>);
-impl<'d> BtcNodeContainer<'d> {
-    pub fn get_rpc_port(&self) -> u16 {
-        self.0.get_host_port_ipv4(18443)
+pub struct BtcNodeContainer(pub ContainerAsync<BtcNodeImage>);
+impl BtcNodeContainer {
+    pub async fn get_rpc_port(&self) -> u16 {
+        self.0.get_host_port_ipv4(18443).await
     }
 
-    pub fn get_rpc_url(&self) -> String {
-        format!("http://{}:{}", self.get_host(), self.get_rpc_port())
+    pub async fn get_rpc_url(&self) -> String {
+        format!("http://{}:{}", self.get_host(), self.get_rpc_port().await)
     }
 
     pub fn get_username(&self) -> String {
@@ -126,14 +121,14 @@ impl<'d> BtcNodeContainer<'d> {
 mod tests {
     use super::*;
     use bitcoincore_rpc::{bitcoin::Network, RpcApi};
-    use testcontainers::{clients::Cli, RunnableImage};
+    use testcontainers::{RunnableImage};
+    use testcontainers::runners::{AsyncRunner};
 
     #[tokio::test]
     async fn test_btc_node() {
-        let docker = Cli::default();
         let image: BtcNodeImage = BtcNodeImage::default();
         let image = RunnableImage::from(image).with_network("host");
-        let node = BtcNodeContainer(docker.run(image));
+        let node = BtcNodeContainer(image.start().await);
         let api = node.api_with_host_network(None);
 
         // without this we cannot create new address

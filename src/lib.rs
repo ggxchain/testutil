@@ -1,7 +1,7 @@
 pub mod containers;
 
 // re-export publicly
-pub use testcontainers::{clients::Cli, Container};
+pub use testcontainers::{ContainerAsync};
 
 use std::time::Duration;
 use tokio::time::timeout;
