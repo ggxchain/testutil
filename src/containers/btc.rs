@@ -1,4 +1,7 @@
-use testcontainers::{ContainerAsync, core::{Image, WaitFor}, ImageArgs};
+use testcontainers::{
+    core::{Image, WaitFor},
+    ContainerAsync, ImageArgs,
+};
 
 pub extern crate bitcoincore_rpc;
 
@@ -121,8 +124,8 @@ impl BtcNodeContainer {
 mod tests {
     use super::*;
     use bitcoincore_rpc::{bitcoin::Network, RpcApi};
-    use testcontainers::{RunnableImage};
-    use testcontainers::runners::{AsyncRunner};
+    use testcontainers::runners::AsyncRunner;
+    use testcontainers::RunnableImage;
 
     #[tokio::test]
     async fn test_btc_node() {

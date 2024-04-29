@@ -1,3 +1,4 @@
+use crate::vecs;
 use testcontainers::{
     core::{Image, WaitFor},
     ContainerAsync, ImageArgs,
@@ -83,7 +84,7 @@ pub struct GgxNodeArgs {
 impl Default for GgxNodeArgs {
     fn default() -> Self {
         Self {
-            args: [
+            args: vecs![
                 "--rpc-external",
                 "--rpc-methods=unsafe",
                 "--unsafe-rpc-external",
@@ -91,11 +92,8 @@ impl Default for GgxNodeArgs {
                 "--rpc-port=9944",
                 // disable unused features
                 "--no-prometheus",
-                "--no-telemetry",
-            ]
-            .iter()
-            .map(|s| s.to_string())
-            .collect(),
+                "--no-telemetry"
+            ],
         }
     }
 }
@@ -131,8 +129,8 @@ impl GgxNodeContainer {
 #[cfg(test)]
 mod tests {
     use super::{GgxNodeContainer, GgxNodeImage};
-    use testcontainers::{RunnableImage};
     use testcontainers::runners::AsyncRunner;
+    use testcontainers::RunnableImage;
 
     #[tokio::test]
     async fn test_ggx_node() {

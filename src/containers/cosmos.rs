@@ -24,7 +24,7 @@ impl Default for CosmosArgs {
 }
 
 impl ImageArgs for CosmosArgs {
-    fn into_iterator(self) -> Box<dyn Iterator<Item=String>> {
+    fn into_iterator(self) -> Box<dyn Iterator<Item = String>> {
         Box::new(self.args.into_iter())
     }
 }
@@ -41,9 +41,9 @@ impl Image for CosmosImage {
     }
 
     fn ready_conditions(&self) -> Vec<WaitFor> {
-        vec![
-            WaitFor::message_on_stderr("starting node with ABCI Tendermint in-process")
-        ]
+        vec![WaitFor::message_on_stderr(
+            "starting node with ABCI Tendermint in-process",
+        )]
     }
 
     fn expose_ports(&self) -> Vec<u16> {

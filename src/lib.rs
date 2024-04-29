@@ -1,7 +1,7 @@
 pub mod containers;
 
 // re-export publicly
-pub use testcontainers::{ContainerAsync};
+pub use testcontainers::ContainerAsync;
 
 use std::time::Duration;
 use tokio::time::timeout;
@@ -47,4 +47,20 @@ where
     })
     .await
     .expect("timeout waiting for event")
+}
+
+/// macro vecs! which creates a Vec<String> from &str:
+/// ```
+/// use testutil::vecs;
+/// let v: Vec<String> = vecs!["a", "b"];
+/// ```
+#[macro_export]
+macro_rules! vecs {
+    ($($x:expr),*) => {{
+        let mut v = Vec::new();
+        $(
+            v.push($x.to_string());
+        )*
+        v
+    }};
 }

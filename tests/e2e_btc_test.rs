@@ -5,12 +5,12 @@ use metadata::ggx::runtime_types::{
     interbtc_primitives::{oracle::Key, CurrencyId, TokenSymbol},
     sp_arithmetic::fixed_point::FixedU128,
 };
-use testcontainers::runners::AsyncRunner;
-use std::{time::Duration};
+use std::time::Duration;
 use subxt::{OnlineClient, PolkadotConfig};
 use subxt_signer::sr25519::dev;
 use testcontainers::core::WaitFor;
-use testcontainers::{RunnableImage};
+use testcontainers::runners::AsyncRunner;
+use testcontainers::RunnableImage;
 use testutil::containers::{
     btc::{
         bitcoincore_rpc::{
@@ -33,10 +33,7 @@ async fn start_btc() -> BtcNodeContainer {
     BtcNodeContainer(image.start().await)
 }
 
-async fn start_vault(
-    btc: &BtcNodeContainer,
-    ggx_ws: String,
-) -> InterbtcClientsContainer {
+async fn start_vault(btc: &BtcNodeContainer, ggx_ws: String) -> InterbtcClientsContainer {
     log::info!("Starting Vault");
 
     let args = [
