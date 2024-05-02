@@ -1,6 +1,6 @@
 use crate::vecs;
 use std::time::Duration;
-use testcontainers::core::{ExecCommand, Image, WaitFor};
+use testcontainers::core::{CmdWaitFor, ExecCommand, Image, WaitFor};
 use testcontainers::{ContainerAsync, ImageArgs};
 
 #[derive(Debug, Eq, Clone, PartialEq)]
@@ -48,7 +48,7 @@ impl Image for HermesImage {
 pub struct HermesContainer(pub ContainerAsync<HermesImage>);
 
 impl HermesContainer {
-    pub async fn exec(&self, cmd: Vec<String>, wait_for: WaitFor, timeout: Duration) {
+    pub async fn exec(&self, cmd: Vec<String>, wait_for: CmdWaitFor, timeout: Duration) {
         tokio::time::timeout(timeout, async {
             let c = ExecCommand::new(cmd).with_cmd_ready_condition(wait_for);
             self.0.exec(c).await;
@@ -67,7 +67,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_hermes() {
-        let container = HermesContainer(HermesImage::default().start().await);
+        let container = HermesImage::default().start().await;
+        let container = HermesContainer(container);
         let cmd = vecs![
             "hermes",
             "--config",
@@ -85,7 +86,7 @@ mod tests {
         container
             .exec(
                 cmd,
-                WaitFor::message_on_stdout("SUCCESS Added key 'alice'"),
+                WaitFor::message_on_stdout("SUCCESS Added key 'alice'").into(),
                 Duration::from_secs(60),
             )
             .await;
