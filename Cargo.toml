@@ -26,3 +26,7 @@ serde = "1.0.200"
 
 [dev-dependencies]
 env_logger = "0.11.3"
+
+[lib]
+# disable this lint globally
+clippy_lints = ["init_then_push"]

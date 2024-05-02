@@ -104,11 +104,18 @@ impl ImageArgs for GgxNodeArgs {
     }
 }
 
-pub struct GgxNodeContainer(pub ContainerAsync<GgxNodeImage>);
+pub struct GgxNodeContainer {
+    pub container: ContainerAsync<GgxNodeImage>,
+    pub host_network: bool,
+}
 impl GgxNodeContainer {
     /// use this only if network is not `host`
     pub async fn get_rpc_port(&self) -> u16 {
-        self.0.get_host_port_ipv4(9944).await
+        if self.host_network {
+            9944
+        } else {
+            self.container.get_host_port_ipv4(9944).await
+        }
     }
 
     /// use this only if network is not `host`
@@ -121,8 +128,9 @@ impl GgxNodeContainer {
         format!("ws://{}:{}", self.get_host(), self.get_rpc_port().await)
     }
 
-    pub fn get_host_ws_url(&self) -> String {
-        format!("ws://{}:9944", self.get_host())
+    pub async fn get_host_ws_url(&self) -> String {
+        let wsport = self.get_rpc_port().await;
+        format!("ws://{}:{}", self.get_host(), wsport)
     }
 }
 
@@ -136,7 +144,10 @@ mod tests {
     async fn test_ggx_node() {
         env_logger::init();
         let image: RunnableImage<GgxNodeImage> = GgxNodeImage::brooklyn().into();
-        let node = GgxNodeContainer(image.start().await);
+        let node = GgxNodeContainer {
+            container: image.start().await,
+            host_network: false,
+        };
 
         let host = node.get_host();
         let port = node.get_rpc_port().await;

@@ -3,7 +3,10 @@ mod metadata;
 #[cfg(test)]
 mod ibc {
     use crate::metadata;
+    
+    use crate::metadata::ggx::runtime_types::pallet_assets::types::{AssetAccount};
     use std::time::Duration;
+    
     use subxt::utils::{AccountId32, MultiAddress};
     use subxt::{OnlineClient, PolkadotConfig};
     use subxt_signer::sr25519::dev;
@@ -34,7 +37,10 @@ mod ibc {
         let image = RunnableImage::from((image, args))
             .with_network("host")
             .with_container_name("alice");
-        GgxNodeContainer(image.start().await)
+        GgxNodeContainer {
+            container: image.start().await,
+            host_network: true,
+        }
     }
 
     async fn start_cosmos() -> CosmosContainer {
@@ -96,7 +102,7 @@ hermes --config config/cos_sub.toml start
         type Call = metadata::ggx::runtime_types::ggxchain_runtime_brooklyn::RuntimeCall;
         type AssetsCall = metadata::ggx::runtime_types::pallet_assets::pallet::Call;
         let call = Call::Assets(AssetsCall::force_create {
-            id: 666,
+            id: GGX_CROSS_ASSET_ID,
             owner,
             is_sufficient: true,
             min_balance: 10,
@@ -115,7 +121,43 @@ hermes --config config/cos_sub.toml start
         }
     }
 
+    // async fn get_ggx_balance<A, B>(
+    //     api: &OnlineClient<PolkadotConfig>,
+    //     account_id: AccountId32,
+    // ) -> Option<AccountInfo<A, B>>{
+    //     let query = metadata::ggx::storage()
+    //         .system()
+    //         .account(account_id);
+    //
+    //     api.storage()
+    //         .at_latest()
+    //         .await
+    //         .expect("cannot get storage at latest")
+    //         .fetch(&query)
+    //         .await
+    //         .expect("cannot get token balance")
+    // }
+
+    async fn get_ggx_asset(
+        api: &OnlineClient<PolkadotConfig>,
+        account_id: AccountId32,
+        _asset_id: u32,
+    ) -> Option<AssetAccount<u128, u128, (), AccountId32>> {
+        let query = metadata::ggx::storage()
+            .assets()
+            .account(GGX_CROSS_ASSET_ID, account_id);
+
+        api.storage()
+            .at_latest()
+            .await
+            .expect("cannot get storage at latest")
+            .fetch(&query)
+            .await
+            .expect("cannot get asset balance")
+    }
+
     const ALICE_COSMOS_ADDRESS: &str = "cosmos1xh2jvz9ecty8qdctlgscmys2dr5gz729k0l7x4";
+    const GGX_CROSS_ASSET_ID: u32 = 666;
 
     #[tokio::test]
     async fn test_ibc() {
@@ -130,7 +172,7 @@ hermes --config config/cos_sub.toml start
             .await
             .expect("cannot get alice balance");
 
-        let api = OnlineClient::<PolkadotConfig>::from_url(alice.get_host_ws_url())
+        let api = OnlineClient::<PolkadotConfig>::from_url(alice.get_host_ws_url().await)
             .await
             .expect("failed to connect to the parachain");
 
@@ -140,6 +182,7 @@ hermes --config config/cos_sub.toml start
         // transfer from earth to ggx rococo
         // hermes --config config/cos_sub.toml tx ft-transfer --timeout-height-offset 1000 --number-msgs 1 --dst-chain rococo-0 --src-chain earth-0 --src-port transfer --src-channel channel-0 --amount 999000 --denom ERT
         log::info!("Transfer from earth (cosmos) to rococo (ggx)");
+        const BOB_DEPOSIT_AMOUNT: u128 = 999000;
         hermes
             .exec(
                 vecs![
@@ -161,7 +204,7 @@ hermes --config config/cos_sub.toml start
                     "--src-channel",
                     "channel-0",
                     "--amount",
-                    "999000",
+                    BOB_DEPOSIT_AMOUNT.to_string(),
                     "--denom",
                     "ERT"
                 ],
@@ -179,6 +222,18 @@ hermes --config config/cos_sub.toml start
             .await
             .expect("cannot get alice balances");
 
+        // alice balance on cosmos changed!
         assert_ne!(init_alice_cosmos_balances, current_alice_cosmos_balances);
+
+        let bob = dev::bob();
+        let bob_asset = get_ggx_asset(&api, bob.public_key().into(), GGX_CROSS_ASSET_ID)
+            .await
+            .expect("unable to get Bob's GGX_CROSS_ASSET_ID asset");
+        assert_eq!(bob_asset.balance, BOB_DEPOSIT_AMOUNT);
+        log::info!(
+            "Deposit is successful! Bob has {} of asset {} on GGX",
+            BOB_DEPOSIT_AMOUNT,
+            GGX_CROSS_ASSET_ID
+        );
     }
 }
