@@ -1,8 +1,9 @@
-use crate::vecs;
 use testcontainers::{
     core::{Image, WaitFor},
     ContainerAsync, ImageArgs,
 };
+
+use crate::vecs;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct GgxNodeImage {
@@ -18,6 +19,7 @@ pub enum GgxNodeNetwork {
     Brooklyn,
     Sydney,
 }
+
 impl GgxNodeNetwork {
     pub fn as_str(&self) -> &'static str {
         match *self {
@@ -81,6 +83,7 @@ impl Image for GgxNodeImage {
 pub struct GgxNodeArgs {
     pub args: Vec<String>,
 }
+
 impl Default for GgxNodeArgs {
     fn default() -> Self {
         Self {
@@ -108,6 +111,7 @@ pub struct GgxNodeContainer {
     pub container: ContainerAsync<GgxNodeImage>,
     pub host_network: bool,
 }
+
 impl GgxNodeContainer {
     /// use this only if network is not `host`
     pub async fn get_rpc_port(&self) -> u16 {
@@ -136,9 +140,10 @@ impl GgxNodeContainer {
 
 #[cfg(test)]
 mod tests {
-    use super::{GgxNodeContainer, GgxNodeImage};
     use testcontainers::runners::AsyncRunner;
     use testcontainers::RunnableImage;
+
+    use super::{GgxNodeContainer, GgxNodeImage};
 
     #[tokio::test]
     async fn test_ggx_node() {

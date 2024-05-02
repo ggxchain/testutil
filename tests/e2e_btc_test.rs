@@ -290,7 +290,6 @@ async fn start_ggx() -> GgxNodeContainer {
 
 #[cfg(test)]
 mod e2e_btc_test {
-
     use crate::*;
 
     fn init() {

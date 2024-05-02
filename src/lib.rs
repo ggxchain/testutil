@@ -1,10 +1,10 @@
-pub mod containers;
+use std::time::Duration;
 
 // re-export publicly
 pub use testcontainers::ContainerAsync;
-
-use std::time::Duration;
 use tokio::time::timeout;
+
+pub mod containers;
 
 /// in case of subxt error, panic with a meaningful message
 pub fn handle_tx_error(e: subxt::Error) -> ! {

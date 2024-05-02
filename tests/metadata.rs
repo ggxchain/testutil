@@ -6,7 +6,7 @@
         substitute_type(
             path = "bitcoin::address::Address",
             with = "::subxt::utils::Static<bitcoin::Address>"
-        )
+        ),
     )
 )]
 #[cfg_attr(

@@ -1,12 +1,11 @@
 use bitcoincore_rpc::jsonrpc::serde_json;
 use rust_decimal::Decimal;
 use serde::Deserialize;
+use testcontainers::ContainerAsync;
 use testcontainers::{
     core::{Image, WaitFor},
     ImageArgs,
 };
-
-use testcontainers::ContainerAsync;
 
 #[derive(Debug, Default, Clone, Eq, PartialEq)]
 pub struct CosmosImage {}
@@ -15,6 +14,7 @@ pub struct CosmosImage {}
 pub struct CosmosArgs {
     args: Vec<String>,
 }
+
 impl Default for CosmosArgs {
     fn default() -> Self {
         Self {
@@ -83,6 +83,7 @@ pub struct CosmosContainer {
     pub container: ContainerAsync<CosmosImage>,
     pub host_network: bool,
 }
+
 impl CosmosContainer {
     pub async fn get_port(&self, port: u16) -> u16 {
         if self.host_network {
@@ -125,13 +126,15 @@ impl CosmosContainer {
 
 #[cfg(test)]
 mod cosmos_tests {
-    use super::*;
     use testcontainers::runners::AsyncRunner;
     use testcontainers::RunnableImage;
+
+    use super::*;
 
     fn init() {
         let _ = env_logger::builder().try_init();
     }
+
     #[tokio::test]
     async fn test_cosmos_container() {
         init();
@@ -159,11 +162,11 @@ mod cosmos_tests {
                 balances: vec![
                     Balance {
                         denom: "ERT".to_string(),
-                        amount: Decimal::from_str_exact("200000000").unwrap()
+                        amount: Decimal::from_str_exact("200000000").unwrap(),
                     },
                     Balance {
                         denom: "stake".to_string(),
-                        amount: Decimal::from_str_exact("100000000").unwrap()
+                        amount: Decimal::from_str_exact("100000000").unwrap(),
                     },
                 ]
             }

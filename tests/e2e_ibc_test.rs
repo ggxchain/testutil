@@ -3,10 +3,11 @@ mod metadata;
 #[cfg(test)]
 mod ibc {
     use crate::metadata;
-    
-    use crate::metadata::ggx::runtime_types::pallet_assets::types::{AssetAccount};
+
+    use crate::metadata::ggx::runtime_types::pallet_assets::types::AssetAccount;
+    use rust_decimal::Decimal;
     use std::time::Duration;
-    
+
     use subxt::utils::{AccountId32, MultiAddress};
     use subxt::{OnlineClient, PolkadotConfig};
     use subxt_signer::sr25519::dev;
@@ -121,23 +122,6 @@ hermes --config config/cos_sub.toml start
         }
     }
 
-    // async fn get_ggx_balance<A, B>(
-    //     api: &OnlineClient<PolkadotConfig>,
-    //     account_id: AccountId32,
-    // ) -> Option<AccountInfo<A, B>>{
-    //     let query = metadata::ggx::storage()
-    //         .system()
-    //         .account(account_id);
-    //
-    //     api.storage()
-    //         .at_latest()
-    //         .await
-    //         .expect("cannot get storage at latest")
-    //         .fetch(&query)
-    //         .await
-    //         .expect("cannot get token balance")
-    // }
-
     async fn get_ggx_asset(
         api: &OnlineClient<PolkadotConfig>,
         account_id: AccountId32,
@@ -154,6 +138,40 @@ hermes --config config/cos_sub.toml start
             .fetch(&query)
             .await
             .expect("cannot get asset balance")
+    }
+
+    fn try_find_ibc_hash(input: Vec<u8>) -> Option<Vec<u8>> {
+        let needle = b"ibc/";
+        input
+            .windows(needle.len())
+            .position(|window| window == needle)
+            .map(|pos| input[pos..].to_vec())
+    }
+
+    async fn get_denom_trace(api: &OnlineClient<PolkadotConfig>) -> String {
+        let query = metadata::ggx::storage().ics20_transfer().denom_trace_root();
+
+        let mut it = api
+            .storage()
+            .at_latest()
+            .await
+            .expect("cannot get storage at latest")
+            .iter(query, 100)
+            .await
+            .expect("cannot iter");
+
+        // NOTE(Warchant): this is an uber hack. I do not know how to properly extract `ibc/{hash}`,
+        // and I was not able to calculate it correctly from PrefixedDenom.
+        // Here v.0.0 will be something like `{bytes garbage}ibc/{str hex hash}`. We need `ibc/{hash}`.
+        while let Ok(Some(v)) = it.next().await {
+            if let Some(hash) = try_find_ibc_hash(v.0 .0) {
+                return String::from_utf8(hash).expect("invalid utf-8");
+            }
+        }
+
+        panic!(
+            "that storage key should have contained `ibc/` with a hash inside... but it doesn't"
+        );
     }
 
     const ALICE_COSMOS_ADDRESS: &str = "cosmos1xh2jvz9ecty8qdctlgscmys2dr5gz729k0l7x4";
@@ -178,6 +196,8 @@ hermes --config config/cos_sub.toml start
 
         log::info!("Creating cross asset");
         create_cross_asset(&api).await;
+
+        // DEPOSIT COSMOS --> GGX
 
         // transfer from earth to ggx rococo
         // hermes --config config/cos_sub.toml tx ft-transfer --timeout-height-offset 1000 --number-msgs 1 --dst-chain rococo-0 --src-chain earth-0 --src-port transfer --src-channel channel-0 --amount 999000 --denom ERT
@@ -234,6 +254,68 @@ hermes --config config/cos_sub.toml start
             "Deposit is successful! Bob has {} of asset {} on GGX",
             BOB_DEPOSIT_AMOUNT,
             GGX_CROSS_ASSET_ID
+        );
+
+        // WITHDRAW GGX --> COSMOS
+        log::info!("Get denom hash to withdraw");
+        let denom = get_denom_trace(&api).await;
+        log::info!("Got this denom: {}", denom);
+
+        log::info!("Transfer from rococo (GGX) to earth (Cosmos)");
+        // hermes --config config/cos_sub.toml tx ft-transfer --timeout-height-offset 1000 --denom ibc/972368C2A53AAD83A3718FD4A43522394D4B5A905D79296BF04EE80565B595DF  --dst-chain earth-0 --src-chain rococo-0 --src-port transfer --src-channel channel-0 --amount 999000
+        const BOB_WITHDRAW_AMOUNT: u128 = 500000;
+        hermes
+            .exec(
+                vecs![
+                    "hermes",
+                    "--config",
+                    "config/cos_sub.toml",
+                    "tx",
+                    "ft-transfer",
+                    "--timeout-height-offset",
+                    "1000",
+                    "--denom",
+                    denom,
+                    "--dst-chain",
+                    "earth-0",
+                    "--src-chain",
+                    "rococo-0",
+                    "--src-port",
+                    "transfer",
+                    "--src-channel",
+                    "channel-0",
+                    "--amount",
+                    BOB_WITHDRAW_AMOUNT.to_string()
+                ],
+                CmdWaitFor::message_on_stdout_or_stderr("SUCCESS"),
+                Duration::from_secs(60), // timeout
+            )
+            .await;
+
+        // wait 30 sec
+        log::info!("Waiting 30 sec...");
+        tokio::time::sleep(Duration::from_secs(30)).await;
+
+        // check that Bob has correct amount after we have withdrawn a bit
+        let bob_asset = get_ggx_asset(&api, bob.public_key().into(), GGX_CROSS_ASSET_ID)
+            .await
+            .expect("unable to get Bob's GGX_CROSS_ASSET_ID asset");
+        assert_eq!(bob_asset.balance, BOB_DEPOSIT_AMOUNT - BOB_WITHDRAW_AMOUNT);
+
+        // check balance on Cosmos
+        let alice_balances = cosmos
+            .get_bank_balances_by_address(ALICE_COSMOS_ADDRESS)
+            .await
+            .expect("unable to get Alice balance");
+
+        let alice_ert_balance = alice_balances
+            .balances
+            .iter()
+            .find(|s| s.denom == "ERT")
+            .expect("invalid balance");
+        assert_eq!(
+            alice_ert_balance.amount,
+            Decimal::from_str_exact("199501000").unwrap()
         );
     }
 }

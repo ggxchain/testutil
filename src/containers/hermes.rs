@@ -1,7 +1,9 @@
-use crate::vecs;
 use std::time::Duration;
+
 use testcontainers::core::{CmdWaitFor, ExecCommand, Image, WaitFor};
 use testcontainers::{ContainerAsync, ImageArgs};
+
+use crate::vecs;
 
 #[derive(Debug, Eq, Clone, PartialEq)]
 pub struct HermesArgs {
@@ -27,6 +29,7 @@ impl ImageArgs for HermesArgs {
 pub struct HermesImage {
     pub wait_for: Vec<WaitFor>,
 }
+
 //
 impl Image for HermesImage {
     type Args = HermesArgs;
@@ -60,10 +63,13 @@ impl HermesContainer {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::vecs;
     use std::time::Duration;
+
     use testcontainers::runners::AsyncRunner;
+
+    use crate::vecs;
+
+    use super::*;
 
     #[tokio::test]
     async fn test_hermes() {
