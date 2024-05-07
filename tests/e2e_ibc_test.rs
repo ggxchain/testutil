@@ -8,6 +8,7 @@ mod ibc {
     use rust_decimal::Decimal;
     use std::time::Duration;
 
+    use futures::join;
     use subxt::utils::{AccountId32, MultiAddress};
     use subxt::{OnlineClient, PolkadotConfig};
     use subxt_signer::sr25519::dev;
@@ -178,11 +179,13 @@ hermes --config config/cos_sub.toml start
     const GGX_CROSS_ASSET_ID: u32 = 666;
 
     #[tokio::test]
-    async fn test_ibc() {
+    async fn test_cosmos_ggx_deposit_withdraw() {
         init();
-        let alice = start_ggx().await;
-        let cosmos = start_cosmos().await;
+
+        let (alice, cosmos) = join!(start_ggx(), start_cosmos());
+        // hermes connects to alice and cosmos, must be started after them...
         let hermes = start_hermes().await;
+
         log::info!("Starting the test...");
 
         let init_alice_cosmos_balances = cosmos

@@ -13,7 +13,7 @@ pub struct GgxNodeImage {
 }
 
 // NOTE(Bohdan): update these if necessary, but do not rename variables, as fetch.sh depends on them.
-const DEFAULT_GGX_IMAGE: &str = "public.ecr.aws/k7w7q6c4/ggxchain-node";
+const DEFAULT_GGX_IMAGE: &str = "ggxdocker/ggxnode";
 
 pub enum GgxNodeNetwork {
     Brooklyn,
@@ -23,8 +23,8 @@ pub enum GgxNodeNetwork {
 impl GgxNodeNetwork {
     pub fn as_str(&self) -> &'static str {
         match *self {
-            GgxNodeNetwork::Brooklyn => "brooklyn-392a5d29",
-            GgxNodeNetwork::Sydney => "sydney-392a5d29",
+            GgxNodeNetwork::Brooklyn => "brooklyn-9db132a",
+            GgxNodeNetwork::Sydney => "sydney-9db132a",
         }
     }
 }
@@ -147,7 +147,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_ggx_node() {
-        env_logger::init();
+        env_logger::builder().try_init().expect("init");
         let image: RunnableImage<GgxNodeImage> = GgxNodeImage::brooklyn().into();
         let node = GgxNodeContainer {
             container: image.start().await,
