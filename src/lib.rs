@@ -1,10 +1,10 @@
-pub mod containers;
+use std::time::Duration;
 
 // re-export publicly
-pub use testcontainers::{ContainerAsync};
-
-use std::time::Duration;
+pub use testcontainers::ContainerAsync;
 use tokio::time::timeout;
+
+pub mod containers;
 
 /// in case of subxt error, panic with a meaningful message
 pub fn handle_tx_error(e: subxt::Error) -> ! {
@@ -47,4 +47,20 @@ where
     })
     .await
     .expect("timeout waiting for event")
+}
+
+/// macro vecs! which creates a Vec<String> from &str:
+/// ```
+/// use testutil::vecs;
+/// let v: Vec<String> = vecs!["a", "b"];
+/// ```
+#[macro_export]
+macro_rules! vecs {
+    ($($x:expr),*) => {{
+        let mut v = Vec::new();
+        $(
+            v.push($x.to_string());
+        )*
+        v
+    }};
 }

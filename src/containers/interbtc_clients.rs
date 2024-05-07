@@ -15,6 +15,7 @@ pub enum InterbtcClientsNetwork {
     Brooklyn,
     Sydney,
 }
+
 impl InterbtcClientsNetwork {
     pub fn as_str(&self) -> &'static str {
         match *self {

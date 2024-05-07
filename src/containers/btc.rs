@@ -1,10 +1,11 @@
-use testcontainers::{ContainerAsync, core::{Image, WaitFor}, ImageArgs};
-
 pub extern crate bitcoincore_rpc;
 
 use bitcoincore_rpc::Auth;
-
 pub use bitcoincore_rpc::Client;
+use testcontainers::{
+    core::{Image, WaitFor},
+    ContainerAsync, ImageArgs,
+};
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct BtcNodeImage {
@@ -53,6 +54,7 @@ impl Image for BtcNodeImage {
 pub struct BtcNodeArgs {
     args: Vec<String>,
 }
+
 impl Default for BtcNodeArgs {
     fn default() -> Self {
         Self {
@@ -81,6 +83,7 @@ impl ImageArgs for BtcNodeArgs {
 }
 
 pub struct BtcNodeContainer(pub ContainerAsync<BtcNodeImage>);
+
 impl BtcNodeContainer {
     pub async fn get_rpc_port(&self) -> u16 {
         self.0.get_host_port_ipv4(18443).await
@@ -119,10 +122,11 @@ impl BtcNodeContainer {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use bitcoincore_rpc::{bitcoin::Network, RpcApi};
-    use testcontainers::{RunnableImage};
-    use testcontainers::runners::{AsyncRunner};
+    use testcontainers::runners::AsyncRunner;
+    use testcontainers::RunnableImage;
+
+    use super::*;
 
     #[tokio::test]
     async fn test_btc_node() {

@@ -5,12 +5,12 @@ use metadata::ggx::runtime_types::{
     interbtc_primitives::{oracle::Key, CurrencyId, TokenSymbol},
     sp_arithmetic::fixed_point::FixedU128,
 };
-use testcontainers::runners::AsyncRunner;
-use std::{time::Duration};
+use std::time::Duration;
 use subxt::{OnlineClient, PolkadotConfig};
 use subxt_signer::sr25519::dev;
 use testcontainers::core::WaitFor;
-use testcontainers::{RunnableImage};
+use testcontainers::runners::AsyncRunner;
+use testcontainers::RunnableImage;
 use testutil::containers::{
     btc::{
         bitcoincore_rpc::{
@@ -33,10 +33,7 @@ async fn start_btc() -> BtcNodeContainer {
     BtcNodeContainer(image.start().await)
 }
 
-async fn start_vault(
-    btc: &BtcNodeContainer,
-    ggx_ws: String,
-) -> InterbtcClientsContainer {
+async fn start_vault(btc: &BtcNodeContainer, ggx_ws: String) -> InterbtcClientsContainer {
     log::info!("Starting Vault");
 
     let args = [
@@ -285,12 +282,14 @@ async fn start_ggx() -> GgxNodeContainer {
     let image = RunnableImage::from((image, args))
         .with_network("host")
         .with_container_name("alice");
-    GgxNodeContainer(image.start().await)
+    GgxNodeContainer {
+        container: image.start().await,
+        host_network: true,
+    }
 }
 
 #[cfg(test)]
 mod e2e_btc_test {
-
     use crate::*;
 
     fn init() {
@@ -305,14 +304,14 @@ mod e2e_btc_test {
         let bitcoin = start_btc().await;
         let alice = start_ggx().await;
         // use subxt to connect to the parachain and set the exchange rate
-        let api = OnlineClient::<PolkadotConfig>::from_url(alice.get_host_ws_url())
+        let api = OnlineClient::<PolkadotConfig>::from_url(alice.get_host_ws_url().await)
             .await
             .expect("failed to connect to the parachain");
 
         set_oracle_exchange_rate(&api).await;
 
         // let _faucet = start_faucet(&docker);
-        let _vault = start_vault(&bitcoin, alice.get_host_ws_url()).await;
+        let _vault = start_vault(&bitcoin, alice.get_host_ws_url().await).await;
 
         let bitcoin_api = bitcoin.api_with_host_network(None);
         let address = create_btc_address_with_50btc(&bitcoin);
