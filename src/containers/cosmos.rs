@@ -1,9 +1,10 @@
 use bitcoincore_rpc::jsonrpc::serde_json;
 use rust_decimal::Decimal;
 use serde::Deserialize;
+use testcontainers::runners::AsyncRunner;
 use testcontainers::ContainerAsync;
 use testcontainers::{
-    core::{Image, WaitFor},
+    core::{Image, RunnableImage, WaitFor},
     ImageArgs,
 };
 
@@ -121,6 +122,18 @@ impl CosmosContainer {
                 response
             ))
         }
+    }
+}
+
+pub async fn start_cosmos() -> CosmosContainer {
+    log::info!("Starting Cosmos");
+    let image = CosmosImage::default();
+    let image = RunnableImage::from(image)
+        .with_network("host")
+        .with_container_name("cosmos");
+    CosmosContainer {
+        container: image.start().await,
+        host_network: true,
     }
 }
 

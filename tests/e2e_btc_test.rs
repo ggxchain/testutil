@@ -1,5 +1,6 @@
 mod metadata;
 
+use futures::join;
 use hex::ToHex;
 use metadata::ggx::runtime_types::{
     interbtc_primitives::{oracle::Key, CurrencyId, TokenSymbol},
@@ -19,9 +20,10 @@ use testutil::containers::{
         },
         BtcNodeContainer, BtcNodeImage,
     },
-    ggx::{GgxNodeArgs, GgxNodeContainer, GgxNodeImage},
+    ggx::start_ggx,
     interbtc_clients::{InterbtcClientsContainer, InterbtcClientsImage},
 };
+use testutil::vecs;
 use tokio::time::timeout;
 
 async fn start_btc() -> BtcNodeContainer {
@@ -274,20 +276,6 @@ async fn get_token_balance(
         .expect("cannot get token balance")
 }
 
-async fn start_ggx() -> GgxNodeContainer {
-    log::info!("Starting GGX");
-    let mut args = GgxNodeArgs::default();
-    args.args.push("--alice".to_string());
-    let image = GgxNodeImage::brooklyn();
-    let image = RunnableImage::from((image, args))
-        .with_network("host")
-        .with_container_name("alice");
-    GgxNodeContainer {
-        container: image.start().await,
-        host_network: true,
-    }
-}
-
 #[cfg(test)]
 mod e2e_btc_test {
     use crate::*;
@@ -301,8 +289,8 @@ mod e2e_btc_test {
         init();
 
         // run in this order: Bitcoin, Parachain, Vault.
-        let bitcoin = start_btc().await;
-        let alice = start_ggx().await;
+        let (bitcoin, alice) = join!(start_btc(), start_ggx(vecs!["--alice"]));
+
         // use subxt to connect to the parachain and set the exchange rate
         let api = OnlineClient::<PolkadotConfig>::from_url(alice.get_host_ws_url().await)
             .await

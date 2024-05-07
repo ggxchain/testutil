@@ -1,6 +1,7 @@
+use testcontainers::runners::AsyncRunner;
 use testcontainers::{
     core::{Image, WaitFor},
-    ContainerAsync, ImageArgs,
+    ContainerAsync, ImageArgs, RunnableImage,
 };
 
 use crate::vecs;
@@ -135,6 +136,22 @@ impl GgxNodeContainer {
     pub async fn get_host_ws_url(&self) -> String {
         let wsport = self.get_rpc_port().await;
         format!("ws://{}:{}", self.get_host(), wsport)
+    }
+}
+
+pub async fn start_ggx(extraargs: Vec<String>) -> GgxNodeContainer {
+    log::info!("Starting GGX");
+    let mut args = GgxNodeArgs::default();
+
+    args.args.extend(extraargs);
+
+    let image = GgxNodeImage::brooklyn();
+    let image = RunnableImage::from((image, args))
+        .with_network("host")
+        .with_container_name("ggx");
+    GgxNodeContainer {
+        container: image.start().await,
+        host_network: true,
     }
 }
 
