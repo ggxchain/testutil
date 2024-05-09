@@ -1,8 +1,8 @@
-use std::time::Duration;
-
 // re-export publicly
 pub use testcontainers::ContainerAsync;
-use tokio::time::timeout;
+
+#[cfg(feature = "brooklyn")]
+pub mod metadata;
 
 pub mod containers;
 
@@ -19,34 +19,6 @@ pub fn handle_tx_error(e: subxt::Error) -> ! {
             panic!("Extrinsic failed with an error: {}", e)
         }
     };
-}
-
-/// block current thread until an event of type T occurs
-pub async fn wait_for_event<T>(
-    api: &subxt::OnlineClient<subxt::PolkadotConfig>,
-    timeout_duration: Duration,
-) -> T
-where
-    T: std::fmt::Debug + subxt::events::StaticEvent,
-{
-    // wait for ExecuteIssue event
-    timeout(timeout_duration, async {
-        loop {
-            let events = api.events().at_latest().await.expect("cannot get events");
-            match events.find_first::<T>() {
-                Ok(Some(e)) => {
-                    log::info!("Event found: {:?}", e);
-                    return e;
-                }
-                _ => {
-                    log::debug!("Waiting for an event...");
-                    tokio::time::sleep(Duration::from_secs(1)).await;
-                }
-            }
-        }
-    })
-    .await
-    .expect("timeout waiting for event")
 }
 
 /// macro vecs! which creates a Vec<String> from &str:

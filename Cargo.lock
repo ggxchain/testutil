@@ -4090,6 +4090,7 @@ name = "testutil"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "async-trait",
  "bitcoin 1.2.0",
  "bitcoincore-rpc",
  "env_logger",
