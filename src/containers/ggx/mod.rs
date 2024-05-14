@@ -1,10 +1,10 @@
+pub mod assets_pallet;
 pub mod dex_pallet;
 
 use async_trait::async_trait;
 use std::time::Duration;
-use subxt::utils::{AccountId32, MultiAddress};
 use subxt::{OnlineClient, PolkadotConfig};
-use subxt_signer::sr25519::{dev, Keypair};
+use subxt_signer::sr25519::Keypair;
 use testcontainers::runners::AsyncRunner;
 use testcontainers::{
     core::{Image, WaitFor},
@@ -12,7 +12,6 @@ use testcontainers::{
 };
 use tokio::time::timeout;
 
-use crate::metadata::ggx::runtime_types::pallet_assets::types::AssetAccount;
 use crate::{handle_tx_error, metadata, vecs};
 
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -127,6 +126,36 @@ pub struct GgxNodeContainer {
 pub trait SubstrateApi {
     fn api(&self) -> &OnlineClient<PolkadotConfig>;
 
+    /// block current thread until an event of type T occurs
+    async fn wait_for_event<T>(&self, timeout_duration: Duration) -> T
+    where
+        T: std::fmt::Debug + subxt::events::StaticEvent + Send,
+    {
+        // wait for T event
+        timeout(timeout_duration, async {
+            loop {
+                let events = self
+                    .api()
+                    .events()
+                    .at_latest()
+                    .await
+                    .expect("cannot get events");
+                match events.find_first::<T>() {
+                    Ok(Some(e)) => {
+                        log::debug!("Event found: {:?}", e);
+                        return e;
+                    }
+                    _ => {
+                        log::debug!("Waiting for an event...");
+                        tokio::time::sleep(Duration::from_secs(1)).await;
+                    }
+                }
+            }
+        })
+        .await
+        .expect("timeout waiting for event")
+    }
+
     async fn send_tx_and_wait_until_finalized<T>(&self, owner: Keypair, payload: T)
     where
         T: subxt::tx::TxPayload + Sync + Send,
@@ -174,84 +203,7 @@ impl GgxNodeContainer {
 
         result.api = Some(api);
 
-        return result;
-    }
-
-    pub async fn create_cross_asset(&self, owner: Keypair, asset_id: u32, min_balance: u128) {
-        log::info!(
-            "GGX: Creating asset with id={}, balance={}",
-            asset_id,
-            min_balance
-        );
-
-        type Call = metadata::ggx::runtime_types::ggxchain_runtime_brooklyn::RuntimeCall;
-        type AssetsCall = metadata::ggx::runtime_types::pallet_assets::pallet::Call;
-        let call = Call::Assets(AssetsCall::force_create {
-            id: asset_id,
-            owner: MultiAddress::Id(owner.public_key().into()),
-            is_sufficient: true,
-            min_balance,
-        });
-
-        let sudo_tx = metadata::ggx::tx().sudo().sudo(call);
-
-        let sudoer = dev::alice(); // user with sudo
-        self.send_tx_and_wait_until_finalized(sudoer, sudo_tx).await;
-
-        // let asset = self
-        //     .get_ggx_asset(owner.public_key().into(), asset_id)
-        //     .await
-        //     .expect("unable to get asset");
-        // assert_eq!(asset.balance, min_balance);
-    }
-
-    /// block current thread until an event of type T occurs
-    pub async fn wait_for_event<T>(&self, timeout_duration: Duration) -> T
-    where
-        T: std::fmt::Debug + subxt::events::StaticEvent,
-    {
-        // wait for ExecuteIssue event
-        timeout(timeout_duration, async {
-            loop {
-                let events = self
-                    .api()
-                    .events()
-                    .at_latest()
-                    .await
-                    .expect("cannot get events");
-                match events.find_first::<T>() {
-                    Ok(Some(e)) => {
-                        log::info!("Event found: {:?}", e);
-                        return e;
-                    }
-                    _ => {
-                        log::debug!("Waiting for an event...");
-                        tokio::time::sleep(Duration::from_secs(1)).await;
-                    }
-                }
-            }
-        })
-        .await
-        .expect("timeout waiting for event")
-    }
-
-    pub async fn get_ggx_asset(
-        &self,
-        account_id: AccountId32,
-        asset_id: u32,
-    ) -> Option<AssetAccount<u128, u128, (), AccountId32>> {
-        let query = metadata::ggx::storage()
-            .assets()
-            .account(asset_id, account_id);
-
-        self.api()
-            .storage()
-            .at_latest()
-            .await
-            .expect("cannot get storage at latest")
-            .fetch(&query)
-            .await
-            .expect("cannot get asset balance")
+        result
     }
 
     pub async fn get_denom_trace(&self) -> String {
@@ -321,9 +273,7 @@ pub async fn start_ggx(extraargs: Vec<String>) -> GgxNodeContainer {
     args.args.extend(extraargs);
 
     let image = GgxNodeImage::brooklyn();
-    let image = RunnableImage::from((image, args))
-        .with_network("host")
-        .with_container_name("ggx");
+    let image = RunnableImage::from((image, args)).with_network("host");
 
     GgxNodeContainer::from_with_host_network(image.start().await).await
 }
@@ -337,7 +287,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_ggx_node() {
-        env_logger::builder().try_init().expect("init");
+        let _ = env_logger::builder().try_init();
         let image: RunnableImage<GgxNodeImage> = GgxNodeImage::brooklyn().into();
         let node = GgxNodeContainer::from(image.start().await).await;
         let host = node.get_host();

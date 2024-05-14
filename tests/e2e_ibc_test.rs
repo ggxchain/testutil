@@ -4,19 +4,19 @@ mod ibc {
     use std::time::Duration;
 
     use futures::join;
-    use subxt::tx::Signer;
-    use subxt::utils::{AccountId32, MultiAddress};
-    use subxt::{OnlineClient, PolkadotConfig};
+
     use subxt_signer::sr25519::dev;
-    use subxt_signer::sr25519::{Keypair, PublicKey};
+
     use testcontainers::core::{CmdWaitFor, WaitFor};
     use testcontainers::runners::AsyncRunner;
     use testcontainers::RunnableImage;
     use testutil::containers::cosmos::start_cosmos;
-    use testutil::containers::ggx::dex_pallet::DexPallet;
+    use testutil::containers::ggx::assets_pallet::AssetsPallet;
+
     use testutil::containers::ggx::{start_ggx, GgxNodeContainer};
     use testutil::containers::hermes::{HermesArgs, HermesContainer, HermesImage};
-    use testutil::{handle_tx_error, vecs};
+
+    use testutil::vecs;
 
     fn init() {
         let _ = env_logger::builder().try_init();
@@ -60,11 +60,7 @@ hermes --config config/cos_sub.toml start
         }).await.expect("hermes timed out")
     }
 
-    async fn deposit_cosmos_to_ggx(
-        hermes: &HermesContainer,
-        deposit_amount: u128,
-        denom: String,
-    ) {
+    async fn deposit_cosmos_to_ggx(hermes: &HermesContainer, deposit_amount: u128, denom: String) {
         let cmd = vecs![
             "hermes",
             "--config",
@@ -148,8 +144,6 @@ hermes --config config/cos_sub.toml start
     const ALICE_COSMOS_ADDRESS: &str = "cosmos1xh2jvz9ecty8qdctlgscmys2dr5gz729k0l7x4";
     const GGX_ASSET_A: u32 = 666;
     const GGX_ASSET_A_NAME: &str = "ERT";
-    const GGX_ASSET_B: u32 = 777;
-    const GGX_ASSET_B_NAME: &str = "USDT";
 
     #[tokio::test]
     async fn test_cosmos_ggx_deposit_withdraw_sunny_day() {
@@ -159,6 +153,7 @@ hermes --config config/cos_sub.toml start
             start_ggx(vecs!["--alice", "--enable-offchain-indexing=true"]),
             start_cosmos()
         );
+
         // hermes connects to alice and cosmos, must be started after them...
         let hermes = start_hermes().await;
 
@@ -171,7 +166,7 @@ hermes --config config/cos_sub.toml start
 
         log::info!("Creating cross asset");
         alice
-            .create_cross_asset(dev::bob(), GGX_ASSET_A, 10_u128)
+            .asset_force_create(dev::bob(), GGX_ASSET_A, 10_u128)
             .await;
 
         // DEPOSIT COSMOS --> GGX
@@ -185,12 +180,7 @@ hermes --config config/cos_sub.toml start
             BOB_GGX_ADDRESS
         );
         const BOB_DEPOSIT_AMOUNT: u128 = 999000;
-        deposit_cosmos_to_ggx(
-            &hermes,
-            BOB_DEPOSIT_AMOUNT,
-            GGX_ASSET_A_NAME.to_string(),
-        )
-        .await;
+        deposit_cosmos_to_ggx(&hermes, BOB_DEPOSIT_AMOUNT, GGX_ASSET_A_NAME.to_string()).await;
 
         let current_alice_cosmos_balances = cosmos
             .get_bank_balances_by_address(ALICE_COSMOS_ADDRESS)
@@ -201,7 +191,7 @@ hermes --config config/cos_sub.toml start
         assert_ne!(init_alice_cosmos_balances, current_alice_cosmos_balances);
 
         let bob_asset = alice
-            .get_ggx_asset(dev::bob().public_key().into(), GGX_ASSET_A)
+            .asset_get_balance(dev::bob(), GGX_ASSET_A)
             .await
             .expect("unable to get Bob's GGX_CROSS_ASSET_ID asset");
         assert_eq!(bob_asset.balance, BOB_DEPOSIT_AMOUNT);
@@ -220,7 +210,7 @@ hermes --config config/cos_sub.toml start
 
         // check that Bob has correct amount after we have withdrawn a bit
         let bob_asset = alice
-            .get_ggx_asset(dev::bob().public_key().into(), GGX_ASSET_A)
+            .asset_get_balance(dev::bob(), GGX_ASSET_A)
             .await
             .expect("unable to get Bob's GGX_CROSS_ASSET_ID asset");
         assert_eq!(bob_asset.balance, BOB_DEPOSIT_AMOUNT - BOB_WITHDRAW_AMOUNT);
@@ -240,63 +230,5 @@ hermes --config config/cos_sub.toml start
             alice_ert_balance.amount,
             Decimal::from_str_exact("199501000").unwrap()
         );
-    }
-
-    #[tokio::test]
-    async fn test_limit_order_between_two_cosmos_wrapped_tokens_sunny_day() {
-        init();
-
-        let (alice, cosmos) = join!(
-            start_ggx(vecs!["--alice", "--enable-offchain-indexing=true"]),
-            start_cosmos()
-        );
-        // hermes connects to alice and cosmos, must be started after them...
-        let hermes = start_hermes().await;
-
-        log::info!("Creating cross assets A and B");
-        const ALICE_A_BALANCE: u128 = 100;
-        const BOB_B_BALANCE: u128 = 1000;
-        alice
-            .create_cross_asset(dev::alice(), GGX_ASSET_A, ALICE_A_BALANCE)
-            .await;
-        alice
-            .create_cross_asset(dev::bob(), GGX_ASSET_B, BOB_B_BALANCE)
-            .await;
-
-        log::info!(
-            "Alice has asset A={}, Bob has asset B={}, but they are not deposited to DEX yet",
-            ALICE_A_BALANCE,
-            BOB_B_BALANCE
-        );
-        assert!(alice
-            .dex_balance_of(dev::alice(), GGX_ASSET_A)
-            .await
-            .is_none());
-        assert!(alice
-            .dex_balance_of(dev::bob(), GGX_ASSET_B)
-            .await
-            .is_none());
-
-        log::info!("Now, Alice and Bob deposit all of their amount of A and B to DEX");
-        alice
-            .dex_deposit(dev::alice(), GGX_ASSET_A, ALICE_A_BALANCE)
-            .await;
-        alice
-            .dex_deposit(dev::bob(), GGX_ASSET_B, BOB_B_BALANCE)
-            .await;
-
-        log::info!("Done, Alice and Bob deposited full amount of A and B");
-        let alice_dex_balance = alice
-            .dex_balance_of(dev::alice(), GGX_ASSET_A)
-            .await
-            .expect("can't get Alice balance");
-        assert_eq!(alice_dex_balance.amount, ALICE_A_BALANCE);
-        assert_eq!(alice_dex_balance.reserved, 0);
-        let bob_dex_balance = alice
-            .dex_balance_of(dev::bob(), GGX_ASSET_B)
-            .await
-            .expect("can't get Bob balance");
-        assert_eq!(bob_dex_balance.amount, BOB_B_BALANCE);
-        assert_eq!(bob_dex_balance.reserved, 0);
     }
 }

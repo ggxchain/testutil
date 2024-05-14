@@ -6,6 +6,7 @@ use subxt_signer::sr25519::dev;
 use testcontainers::core::WaitFor;
 use testcontainers::runners::AsyncRunner;
 use testcontainers::RunnableImage;
+use testutil::containers::ggx::SubstrateApi;
 use testutil::containers::{
     btc::{
         bitcoincore_rpc::{
