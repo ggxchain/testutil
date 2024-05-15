@@ -38,7 +38,7 @@ function cleanup() {
     (docker rm -f $1 || true) 1>/dev/null 2>/dev/null
 }
 
-GGX_RS="../containers/ggx.rs"
+GGX_RS="../containers/ggx/mod.rs"
 # Use grep and cut to parse the strings into variables
 DEFAULT_GGX_NODE_IMAGE=$(cat "$GGX_RS" | grep -E 'DEFAULT_GGX_IMAGE: &str' | grep -oE '".*?"' | sed -e 's/"//g')
 DEFAULT_GGX_BROOKLYN_TAG=$(cat "$GGX_RS" | grep -E "GgxNodeNetwork::Brooklyn =>" | grep -oE '".*?"' | sed -e 's/"//g')

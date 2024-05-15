@@ -1,17 +1,12 @@
-mod metadata;
-
 use futures::join;
 use hex::ToHex;
-use metadata::ggx::runtime_types::{
-    interbtc_primitives::{oracle::Key, CurrencyId, TokenSymbol},
-    sp_arithmetic::fixed_point::FixedU128,
-};
 use std::time::Duration;
 use subxt::{OnlineClient, PolkadotConfig};
 use subxt_signer::sr25519::dev;
 use testcontainers::core::WaitFor;
 use testcontainers::runners::AsyncRunner;
 use testcontainers::RunnableImage;
+use testutil::containers::ggx::SubstrateApi;
 use testutil::containers::{
     btc::{
         bitcoincore_rpc::{
@@ -22,6 +17,10 @@ use testutil::containers::{
     },
     ggx::start_ggx,
     interbtc_clients::{InterbtcClientsContainer, InterbtcClientsImage},
+};
+use testutil::metadata::ggx::runtime_types::{
+    interbtc_primitives::{oracle::Key, CurrencyId, TokenSymbol},
+    sp_arithmetic::fixed_point::FixedU128,
 };
 use testutil::vecs;
 use tokio::time::timeout;
@@ -70,7 +69,7 @@ async fn start_vault(btc: &BtcNodeContainer, ggx_ws: String) -> InterbtcClientsC
 async fn set_oracle_exchange_rate(api: &OnlineClient<PolkadotConfig>) {
     // use subxt to connect to the parachain and set the exchange rate for GGXT.
     // normally `oracle` component does that, but in our setup it is not available.
-    let tx = metadata::ggx::tx().oracle().feed_values(vec![(
+    let tx = testutil::metadata::ggx::tx().oracle().feed_values(vec![(
         Key::ExchangeRate(CurrencyId::Token(TokenSymbol::GGXT)),
         FixedU128(1_000_000_000_000_000_000u128),
     )]);
@@ -87,7 +86,7 @@ async fn set_oracle_exchange_rate(api: &OnlineClient<PolkadotConfig>) {
 }
 
 async fn get_best_btc_block_hash(api: &OnlineClient<PolkadotConfig>) -> Option<String> {
-    let query = metadata::ggx::storage().btc_relay().best_block();
+    let query = testutil::metadata::ggx::storage().btc_relay().best_block();
     let result = api
         .storage()
         .at_latest()
@@ -194,7 +193,7 @@ async fn deposit_btc_to_ggx(
 ) {
     log::info!("Depositing some BTC to GGX");
 
-    use metadata::ggx::runtime_types::interbtc_primitives::{VaultCurrencyPair, VaultId};
+    use testutil::metadata::ggx::runtime_types::interbtc_primitives::{VaultCurrencyPair, VaultId};
 
     let ggxt = CurrencyId::Token(TokenSymbol::GGXT);
     let kbtc = CurrencyId::Token(TokenSymbol::KBTC);
@@ -208,7 +207,7 @@ async fn deposit_btc_to_ggx(
         },
     };
 
-    let tx = metadata::ggx::tx().issue().request_issue(
+    let tx = testutil::metadata::ggx::tx().issue().request_issue(
         AMOUNT.into(),
         vault_id,
         CurrencyId::Token(TokenSymbol::GGXT),
@@ -226,7 +225,7 @@ async fn deposit_btc_to_ggx(
     };
 
     let e = events
-        .find_first::<metadata::ggx::issue::events::RequestIssue>()
+        .find_first::<testutil::metadata::ggx::issue::events::RequestIssue>()
         .expect("no RequestIssue event")
         .expect("Option is None");
 
@@ -263,8 +262,8 @@ async fn get_token_balance(
     api: &OnlineClient<PolkadotConfig>,
     account_id: subxt::utils::AccountId32,
     token: CurrencyId,
-) -> Option<metadata::ggx::runtime_types::orml_tokens::AccountData<u128>> {
-    let query = metadata::ggx::storage()
+) -> Option<testutil::metadata::ggx::runtime_types::orml_tokens::AccountData<u128>> {
+    let query = testutil::metadata::ggx::storage()
         .tokens()
         .accounts(account_id, token);
     api.storage()
@@ -327,11 +326,11 @@ mod e2e_btc_test {
         wait_for_btc_tree_sync(&bitcoin_api, &api, Duration::from_secs(60)).await;
 
         // wait for ExecuteIssue event
-        let e = testutil::wait_for_event::<metadata::ggx::issue::events::ExecuteIssue>(
-            &api,
-            Duration::from_secs(60),
-        )
-        .await;
+        let e = alice
+            .wait_for_event::<testutil::metadata::ggx::issue::events::ExecuteIssue>(
+                Duration::from_secs(60),
+            )
+            .await;
         log::warn!("ExecuteIssue found: {:?}", e);
 
         // check if Alice has KBTC that we deposited
