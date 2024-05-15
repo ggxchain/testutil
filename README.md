@@ -1,9 +1,15 @@
 # testutil
 
-## Metadata *.scale
+This repo contains docker modules for [`testcontainers-rs`](https://github.com/testcontainers/testcontainers-rs): GGX, BTC, Vault, Cosmos, Hermes.
 
-Every clent is accompanied with a .scale file which contains runtime metadata. It heavily depends on a GGX node version.
+And end-to-end (e2e) tests under [`/tests`](./tests)
 
-Make sure you keep it up to date with a version in [ggx.rs](./src/containers/ggx.rs).
+To run all tests you need:
+1. Rust
+2. Docker to be up and running
 
-To update, run `./fetch.sh`.
+Then:
+```bash
+export RUST_LOG=info
+cargo test
+```
