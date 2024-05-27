@@ -32,8 +32,8 @@ pub enum GgxNodeNetwork {
 impl GgxNodeNetwork {
     pub fn as_str(&self) -> &'static str {
         match *self {
-            GgxNodeNetwork::Brooklyn => "brooklyn-9db132a",
-            GgxNodeNetwork::Sydney => "sydney-9db132a",
+            GgxNodeNetwork::Brooklyn => "brooklyn-a7c40ec",
+            GgxNodeNetwork::Sydney => "sydney-a7c40ec",
         }
     }
 }

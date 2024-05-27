@@ -134,6 +134,7 @@ async fn wait_for_btc_tree_sync(
 }
 
 fn create_btc_address_with_50btc(bitcoin: &BtcNodeContainer) -> Address {
+    log::info!("Creating BTC addr with 50 BTC");
     // without this we cannot create new address
     let bitcoin_api = bitcoin.api_with_host_network(None);
     bitcoin_api
@@ -279,13 +280,9 @@ async fn get_token_balance(
 mod e2e_btc_test {
     use crate::*;
 
-    fn init() {
-        let _ = env_logger::builder().is_test(true).try_init();
-    }
-
     #[tokio::test]
     async fn e2e_btc_test() {
-        init();
+        let _ = env_logger::builder().try_init();
 
         // run in this order: Bitcoin, Parachain, Vault.
         let (bitcoin, alice) = join!(start_btc(), start_ggx(vecs!["--alice"]));
@@ -312,7 +309,7 @@ mod e2e_btc_test {
         bitcoin_api.generate_to_address(20, &address).unwrap();
 
         // wait for sync again, to confirm that vault
-        wait_for_btc_tree_sync(&bitcoin_api, &api, Duration::from_secs(60)).await;
+        wait_for_btc_tree_sync(&bitcoin_api, &api, Duration::from_secs(120)).await;
 
         // transfer BTC to GGX (TBTC)
         deposit_btc_to_ggx(

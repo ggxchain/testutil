@@ -19,8 +19,8 @@ pub enum InterbtcClientsNetwork {
 impl InterbtcClientsNetwork {
     pub fn as_str(&self) -> &'static str {
         match *self {
-            InterbtcClientsNetwork::Brooklyn => "brooklyn-022a15afe51ae2e9c0ef18bc7f587bc6166865b7",
-            InterbtcClientsNetwork::Sydney => "sydney-022a15afe51ae2e9c0ef18bc7f587bc6166865b7",
+            InterbtcClientsNetwork::Brooklyn => "brooklyn-9b1ac6fe790e6504ab4b06f7baedcd84958d364a",
+            InterbtcClientsNetwork::Sydney => "sydney-9b1ac6fe790e6504ab4b06f7baedcd84958d364a",
         }
     }
 }
